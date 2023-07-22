@@ -36,4 +36,21 @@ public:
     }
 };
 
+class Power : public Operation {
+public:
+    double evaluate(double left, double right) const override {
+        return pow(left, right);
+    }
+};
+
+class SquareRoot : public Operation {
+public:
+    double evaluate(double left, double right) const override {
+        if (right < 0) {
+            throw std::runtime_error("Square root of negative number");
+        }
+        return sqrt(right);
+    }
+};
+
 #endif

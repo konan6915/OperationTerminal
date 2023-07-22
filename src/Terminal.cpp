@@ -1,5 +1,5 @@
 #include "Terminal.h"
-
+#include <stack>
 void MatlabTerminal::run() {
     std::string expression;
     std::cout << "Welcome to my computing terminal!" << std::endl;
@@ -24,40 +24,128 @@ void MatlabTerminal::evaluateExpression(const std::string& expression) {
     }
 }
 
-double MatlabTerminal::eval(const std::string& expression) {
-    double result = 0;
+double MatlabTerminal::eval(const std::string &expression)
+{
+    std::stack<double> numbers;
+    std::stack<char> operators;
     size_t startPos = 0;
-    char lastOperator = '+';
-
     while (startPos < expression.length())
     {
-        size_t operatorPos = expression.find_first_of("+-*/", startPos);
-        if (operatorPos == std::string::npos)
+        if (isdigit(expression[startPos]))
         {
-            std::string operand = expression.substr(startPos);
-            result = performOperation(result, operand, lastOperator);
-            break;
+            size_t endPos = startPos;
+            while (endPos < expression.length() && (isdigit(expression[endPos]) || expression[endPos] == '.'))
+            {
+                endPos++;
+            }
+            std::string numberStr = expression.substr(startPos, endPos - startPos);
+            double number = stod(numberStr);
+            numbers.push(number);
+            startPos = endPos;
         }
-
-        std::string operand = expression.substr(startPos, operatorPos - startPos);
-        result = performOperation(result, operand, lastOperator);
-
-        char operatorChar = expression[operatorPos];
-        lastOperator = operatorChar;
-
-        startPos = operatorPos + 1;
+        else if (expression[startPos] == '+' || expression[startPos] == '-')
+        {
+            while (!operators.empty() && (operators.top() == '+' || operators.top() == '-' || operators.top() == '*' || operators.top() == '/'))
+            {
+                calculate(numbers, operators);
+            }
+            operators.push(expression[startPos]);
+            startPos++;
+        }
+        else if (expression[startPos] == '*' || expression[startPos] == '/')
+        {
+            while (!operators.empty() && (operators.top() == '*' || operators.top() == '/'))
+            {
+                calculate(numbers, operators);
+            }
+            operators.push(expression[startPos]);
+            startPos++;
+        }
+        else if (expression[startPos] == '(')
+        {
+            operators.push(expression[startPos]);
+            startPos++;
+        }
+        else if (expression[startPos] == ')')
+        {
+            while (operators.top() != '(')
+            {
+                calculate(numbers, operators);
+            }
+            operators.pop();
+            startPos++;
+        }
+        else if (expression[startPos] == '^')
+        {
+            // 处理乘方运算符 "^"
+            startPos++; // 跳过 "^"
+            double exponent = parseNumber(expression, startPos);
+            double base = numbers.top();
+            numbers.pop();
+            double result = pow(base, exponent);
+            numbers.push(result);
+        }
+        else if (expression[startPos] == 's' && expression.substr(startPos, 4) == "sqrt")
+        {
+            // 处理开方运算符 "sqrt"
+            startPos += 4; // 跳过 "sqrt"
+            if (expression[startPos] != '(')
+            {
+                throw std::runtime_error("Expected '(' after 'sqrt'");
+            }
+            startPos++; // 跳过 '('
+            double value = parseNumber(expression, startPos);
+            if (expression[startPos] != ')')
+            {
+                throw std::runtime_error("Expected ')' after number in 'sqrt'");
+            }
+            startPos++; // 跳过 ')'
+            if (value < 0)
+            {
+                throw std::runtime_error("Square root of negative number");
+            }
+            double result = sqrt(value);
+            numbers.push(result);
+        }
+        else
+        {
+            startPos++;
+        }
     }
 
-    return result;
+    while (!operators.empty())
+    {
+        calculate(numbers, operators);
+    }
+
+    return numbers.top();
 }
 
-double MatlabTerminal::performOperation(double left, const std::string &operand, char lastOperator)
+void MatlabTerminal::calculate(std::stack<double> &numbers, std::stack<char> &operators)
 {
-    Operation *operation = OperationFactory::createOperation(std::string(1, lastOperator));
-    double value = stod(operand);
-    double result = operation->evaluate(left, value);
+    char op = operators.top();
+    operators.pop();
 
+    double right = numbers.top();
+    numbers.pop();
+    double left = numbers.top();
+    numbers.pop();
+
+    Operation *operation = OperationFactory::createOperation(std::string(1, op));
+    double result = operation->evaluate(left, right);
     delete operation;
 
-    return result;
+    numbers.push(result);
+}
+
+double MatlabTerminal::parseNumber(const std::string& expression, size_t& startPos)
+{
+    size_t endPos = startPos;
+    while (endPos < expression.length() && (isdigit(expression[endPos]) || expression[endPos] == '.')) {
+        endPos++;
+    }
+    std::string numberStr = expression.substr(startPos, endPos - startPos);
+    double number = std::stod(numberStr);
+    startPos = endPos;
+    return number;
 }

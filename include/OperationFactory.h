@@ -21,8 +21,11 @@ public:
         {
             return new Division();
         }
-
-        // 在这里添加其他运算符的判断和创建逻辑
+        else if (operatorStr == "^") {
+            return new Power();
+        } else if (operatorStr == "sqrt") {
+            return new SquareRoot();
+        }
 
         throw std::runtime_error("Unsupported operator");
     }
